@@ -4,42 +4,80 @@ using UnityEngine;
 
 public class World : MonoBehaviour
 {
+    public WorldConfig worldConfig;
     [SerializeField] public Material worldMaterial;
-
-    [SerializeField] int worldChunkUnit = 10;
-    [SerializeField] int worldChunkRender = 2;
-    [SerializeField] int chunkUnit = 20;
-
-    Vector3 startChunkPosition;
-    Vector3 startVoxelPosition;
 
     Chunk currentChunk;
 
-    Chunk[,] totalChunks;
-    List<Chunk> chunkList = new List<Chunk>();
+    public Chunk[,] totalChunks;
+    List<Chunk> activeChunkList = new List<Chunk>();
 
     private void Start()
     {
-        InitializeStartPositions();
+        worldConfig = this.GetComponent<WorldConfig>();
+
         InitializeChunkArray();
 
+        WorldGeneration worldGeneration = this.GetComponent<WorldGeneration>();
+        worldGeneration.GenerateWorldMap();
+
         CreateStartChunks();
+
+        Camera.main.transform.position = worldConfig.startVoxelPosition;
     }
 
     private void Update()
-    {
-        if (Input.GetKeyDown(KeyCode.I))
-        {
-            Debug.Log(chunkList.ToArray().Length);
-        }
-
-        Vector3 playerPosition = Camera.main.transform.position;
-        int worldLengthVox = worldChunkUnit * chunkUnit;
-
-        if (IsChunkInWorldPosition(Camera.main.transform) == false)
+    {        
+        if (IsChunkInWorldFromPosition(Camera.main.transform) == false)
         {
             return;
         }
+
+        RenderHandle();
+    }
+
+    #region Initialize Chunk Array && Create Start Chunks
+
+    private void InitializeChunkArray()
+    {
+        //World Length In Chunks
+        int worldCL = worldConfig.worldChunkLength;
+
+        totalChunks = new Chunk[worldCL, worldCL];
+
+        for (int x = 0; x < worldCL; x++)
+        {
+            for (int z = 0; z < worldCL; z++)
+            {
+                totalChunks[x, z] = null;
+            }
+        }
+    }
+
+    private void CreateStartChunks()
+    {
+        //Render Range In Chunks
+        int chunkRR = worldConfig.chunkRenderRange;
+
+        for (int x = 0; x < chunkRR * 2 + 1; x++)
+        {
+            for (int y = 0; y < chunkRR * 2 + 1; y++)
+            {
+                int chunkXDisplacementFromCenter = (int)worldConfig.startChunkPosition.x - chunkRR + x;
+                int chunkZDisplacementFromCenter = (int)worldConfig.startChunkPosition.x - chunkRR + y;
+
+                totalChunks[chunkXDisplacementFromCenter, chunkZDisplacementFromCenter].parentChunkObject.SetActive(true);
+            }
+        }
+    }
+
+    #endregion
+
+    #region Render/Derender
+
+    private void RenderHandle()
+    {
+        Vector3 playerPosition = Camera.main.transform.position;
 
         int chunkX = (int)ChunkFromCoords(playerPosition).x;
         int chunkZ = (int)ChunkFromCoords(playerPosition).y;
@@ -52,79 +90,34 @@ public class World : MonoBehaviour
             {
                 currentChunk = playerChunk;
 
-                LoadNewRenderChunks();
+                RenderChunks();
             }
             else
             {
                 currentChunk = playerChunk;
 
-                LoadNewRenderChunks();
+                RenderChunks();
 
                 DeRenderChunks();
             }
         }
     }
 
-    private void DeRenderChunks()
+    private void RenderChunks()
     {
-        List<Chunk> tempList = new List<Chunk>();
-        
-        foreach(Chunk tempChunk in chunkList)
-        {
-            tempList.Add(tempChunk);
-        }
+        int chunkRR = worldConfig.chunkRenderRange;
 
-        for (int x = 0; x < worldChunkRender * 2 + 1; x++)
+        for (int x = 0; x < chunkRR * 2 + 1; x++)
         {
-            for (int z = 0; z < worldChunkRender * 2 + 1; z++)
+            for (int z = 0; z < chunkRR * 2 + 1; z++)
             {
-                int xOffset = x - worldChunkRender;
-                int zOffset = z - worldChunkRender;
+                int xOffset = x - chunkRR;
+                int zOffset = z - chunkRR;
 
                 int chunkX = xOffset + (int)ChunkFromCoords(Camera.main.transform.position).x;
                 int chunkZ = zOffset + (int)ChunkFromCoords(Camera.main.transform.position).y;
 
-                //Run through every chunk in render distance
-
-                if (IsChunkInWorld(new Vector2(chunkX, chunkZ)) == false)
-                {
-                    continue;
-                }
-
-                Vector2 curChunkCoords = ChunkFromCoords(new Vector2(chunkX, chunkZ));
-                Chunk curChunk = totalChunks[chunkX, chunkZ];
-
-                tempList.Remove(curChunk);
-            }
-        }
-
-        foreach (Chunk tempChunk in tempList)
-        {
-            tempChunk.DestroyMesh();
-            chunkList.Remove(tempChunk);
-        }
-    }
-
-    private void LoadNewRenderChunks()
-    {
-        for (int x = 0; x < worldChunkRender * 2 + 1; x ++)
-        {
-            for (int z = 0; z < worldChunkRender * 2 + 1; z++)
-            {
-                int xOffset = x - worldChunkRender;
-                int zOffset = z - worldChunkRender;
-
-                int chunkX = xOffset + (int)ChunkFromCoords(Camera.main.transform.position).x;
-                int chunkZ = zOffset + (int)ChunkFromCoords(Camera.main.transform.position).y;
-
-                //Run through every chunk in render distance
-
-                if(IsChunkInWorld(new Vector2(chunkX, chunkZ)) == false)
-                {
-                    continue;
-                }
-
-                if (IsChunkInList(totalChunks[chunkX, chunkZ]) == true)
+                if (IsChunkInWorldFromVector2(new Vector2(chunkX, chunkZ)) == false || IsChunkInList(totalChunks[chunkX, chunkZ]) == true)
                 {
                     continue;
                 }
@@ -133,64 +126,96 @@ public class World : MonoBehaviour
 
                 if (totalChunks[chunkX, chunkZ] == null)
                 {
-                    //Null Chunk Handle
-                    Chunk newChunk = CreateChunk(chunkX, chunkZ);
+                    Chunk newChunk = MakeChunk(chunkX, chunkZ);
 
-                    chunkList.Add(newChunk);
+                    activeChunkList.Add(newChunk);
                     totalChunks[chunkX, chunkZ] = newChunk;
                 }
                 else
                 {
-                    //Fill Chunk Handle
-                    chunkList.Add(totalChunks[chunkX, chunkZ]);
-                    totalChunks[chunkX, chunkZ].CreateChunk();
+                    activeChunkList.Add(totalChunks[chunkX, chunkZ]);
+                    totalChunks[chunkX, chunkZ].parentChunkObject.SetActive(true);
                 }
+
+                totalChunks[chunkX, chunkZ].CreateChunk();
             }
         }
     }
 
-    #region Variable Initializations
-
-    private void InitializeStartPositions()
+    private void DeRenderChunks()
     {
-        startChunkPosition = new Vector3(worldChunkUnit / 2, 1, worldChunkUnit / 2);
-        startVoxelPosition = (startChunkPosition * chunkUnit) + new Vector3(chunkUnit / 2, 1, chunkUnit / 2);
+        //Render Range In Chunks
+        int chunkRR = worldConfig.chunkRenderRange;
 
-        Camera.main.transform.position = startVoxelPosition;
-    }
+        List<Chunk> previouslyActiveChunks = new List<Chunk>(activeChunkList);
 
-    private void InitializeChunkArray()
-    {
-        totalChunks = new Chunk[worldChunkUnit, worldChunkUnit];
-
-        for (int x = 0; x < worldChunkUnit; x++)
+        for (int x = 0; x < chunkRR * 2 + 1; x++)
         {
-            for (int z = 0; z < worldChunkUnit; z++)
+            for (int z = 0; z < chunkRR * 2 + 1; z++)
             {
-                totalChunks[x, z] = null;
+                int xOffset = x - chunkRR;
+                int zOffset = z - chunkRR;
+
+                int chunkX = xOffset + (int)ChunkFromCoords(Camera.main.transform.position).x;
+                int chunkZ = zOffset + (int)ChunkFromCoords(Camera.main.transform.position).y;
+
+                //Run through every chunk in render distance
+
+                if (IsChunkInWorldFromVector2(new Vector2(chunkX, chunkZ)) == false)
+                {
+                    continue;
+                }
+
+                Chunk curChunk = totalChunks[chunkX, chunkZ];
+                previouslyActiveChunks.Remove(curChunk);
             }
+        }
+
+        foreach (Chunk tempChunk in previouslyActiveChunks)
+        {
+            tempChunk.parentChunkObject.SetActive(false);
+            activeChunkList.Remove(tempChunk);
         }
     }
 
     #endregion
 
-    #region Chunk Generation
+    #region Utilities
 
-    private void CreateStartChunks()
+    public void PlaceVoxel(Vector3 position, BlockConfigs.BlockDataConfig inputBlock)
     {
-        for (int x = 0; x < worldChunkRender * 2 + 1; x++)
-        {
-            for (int y = 0; y < worldChunkRender * 2 + 1; y++)
-            {
-                int chunkXDisplacementFromCenter = (int)startChunkPosition.x - worldChunkRender + x;
-                int chunkZDisplacementFromCenter = (int)startChunkPosition.x - worldChunkRender + y;
+        Chunk currentChunk = null;
 
-                CreateChunk(chunkXDisplacementFromCenter, chunkZDisplacementFromCenter);
-            }
+        int chunkX = (int)ChunkFromCoords(position).x;
+        int chunkZ = (int)ChunkFromCoords(position).y;
+
+        if (IsChunkInWorldFromPosition(Camera.main.transform) == false)
+        {
+            return;
         }
+
+        if (totalChunks[chunkX, chunkZ] == null)
+        {
+            currentChunk = MakeChunk(chunkX, chunkZ);
+        }
+
+        Chunk targetChunk = totalChunks[chunkX, chunkZ];
+
+        int xPos = (int)(position.x % worldConfig.chunkVoxelLength);
+        int yPos = (int)position.y;
+        int zPos = (int)(position.z % worldConfig.chunkVoxelLength);
+
+        Vector3 positionInChunk = new Vector3(xPos, yPos, zPos);
+
+        targetChunk.AddVoxelToMap(positionInChunk, inputBlock);
+
+        if (currentChunk != null)
+        {
+            currentChunk.parentChunkObject.SetActive(false);
+        }   
     }
 
-    private Chunk CreateChunk(int chunkX, int chunkZ)
+    private Chunk MakeChunk(int chunkX, int chunkZ)
     {
         Chunk newChunk = new Chunk();
         newChunk.CreateChunkObject(this, chunkX, chunkZ);
@@ -200,24 +225,20 @@ public class World : MonoBehaviour
         return newChunk;
     }
 
-    #endregion region
-
-    #region Utilities
-
-    private Vector2 ChunkFromCoords(Vector3 playerPosition)
+    public Vector2 ChunkFromCoords(Vector3 playerPosition)
     {
         int curX = (int)playerPosition.x;
         int curZ = (int)playerPosition.z;
 
-        curX = curX / chunkUnit;
-        curZ = curZ / chunkUnit;
+        curX = curX / worldConfig.chunkVoxelLength;
+        curZ = curZ / worldConfig.chunkVoxelLength;
 
         return new Vector2(curX, curZ);
     }
 
     private bool IsChunkInList(Chunk inputChunk)
     {
-        foreach (Chunk chunk in chunkList)
+        foreach (Chunk chunk in activeChunkList)
         {
             if (inputChunk == chunk)
             {
@@ -228,9 +249,9 @@ public class World : MonoBehaviour
         return false;
     }
 
-    private bool IsChunkInWorld(Vector2 chunkCoords)
+    private bool IsChunkInWorldFromVector2(Vector2 chunkCoords)
     {
-        if (chunkCoords.x < 0 || chunkCoords.x > worldChunkUnit - 1 || chunkCoords.y < 0 || chunkCoords.y > worldChunkUnit - 1)
+        if (chunkCoords.x < 0 || chunkCoords.x > worldConfig.worldChunkLength - 1 || chunkCoords.y < 0 || chunkCoords.y > worldConfig.worldChunkLength - 1)
         {
             return false;
         }
@@ -240,11 +261,11 @@ public class World : MonoBehaviour
         }
     }
 
-    private bool IsChunkInWorldPosition(Transform position)
+    private bool IsChunkInWorldFromPosition(Transform position)
     {
         Vector3 curChunk = ChunkFromCoords(position.position);
 
-        if (IsChunkInWorld(curChunk) == true)
+        if (IsChunkInWorldFromVector2(curChunk) == true)
         {
             return true;
         }

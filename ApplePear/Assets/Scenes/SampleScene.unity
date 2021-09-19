@@ -132,7 +132,9 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 630742060}
+  - component: {fileID: 630742061}
   - component: {fileID: 630742059}
+  - component: {fileID: 630742062}
   m_Layer: 0
   m_Name: World
   m_TagString: Untagged
@@ -152,10 +154,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 001d9230c895ed041bef6b70a284e5f6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  worldConfig: {fileID: 630742061}
   worldMaterial: {fileID: 2100000, guid: b64812288f1ade24eae642c5f1139fac, type: 2}
-  worldChunkUnit: 100
-  worldChunkRender: 7
-  chunkUnit: 20
 --- !u!4 &630742060
 Transform:
   m_ObjectHideFlags: 0
@@ -170,6 +170,36 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 2
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &630742061
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 630742058}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bf2245a164779c24588df72b2148585b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  worldChunkLength: 30
+  chunkRenderRange: 5
+  chunkVoxelLength: 20
+  worldLengthVoxel: 0
+  startChunkPosition: {x: 0, y: 0, z: 0}
+  startVoxelPosition: {x: 0, y: 0, z: 0}
+--- !u!114 &630742062
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 630742058}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 08affa3815006fa489e1d97ccd6e5c04, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &705507993
 GameObject:
   m_ObjectHideFlags: 0

@@ -4,34 +4,33 @@ using UnityEngine;
 
 public class Chunk
 {
-    public bool isActive;
+    public WorldConfig worldConfig;
+    public GameObject parentChunkObject;
 
     int chunkX;
     int chunkZ;
 
     public void CreateChunkObject(World worldParent, int tempChunkX, int tempChunkZ)
     {
+        worldConfig = worldParent.worldConfig;
+
+        int chunkVL = worldConfig.chunkVoxelLength;
+
         chunkX = tempChunkX;
         chunkZ = tempChunkZ;
 
         GameObject chunkObject = new GameObject();
-        chunkObject.name = $"Chunk ({tempChunkX}, {tempChunkZ})";
+        parentChunkObject = chunkObject;
 
+        chunkObject.name = $"Chunk ({tempChunkX}, {tempChunkZ})";
         meshFilter = chunkObject.AddComponent<MeshFilter>();
         meshRenderer = chunkObject.AddComponent<MeshRenderer>();
-       
         meshRenderer.material = worldParent.worldMaterial;
         chunkObject.transform.SetParent(worldParent.transform);
+        chunkObject.transform.position = new Vector3(chunkX * chunkVL, 0, chunkZ * chunkVL);
 
-        chunkObject.transform.position = new Vector3(tempChunkX * chunkUnit, 0, tempChunkZ * chunkUnit);
-
-        PopulateVoxelMap();
+        InitializeVoxelMap();
         CreateChunk();
-    }
-
-    public void DestroyMesh()
-    {
-        meshFilter.mesh.Clear();
     }
 
     #region Chunk Creation
@@ -41,74 +40,54 @@ public class Chunk
     MeshFilter meshFilter;
     MeshRenderer meshRenderer;
 
-    static int chunkUnit = 20;
-    
-    BlockConfigs.BlockDataConfig[,,] voxelData = new BlockConfigs.BlockDataConfig[chunkUnit, chunkUnit, chunkUnit];
+    public BlockConfigs.BlockDataConfig[,,] voxelData;
 
     #endregion
 
-    private void PopulateVoxelMap()
+    private void InitializeVoxelMap()
     {
-        for (int x = 0; x < chunkUnit; x++)
+        int chunkVL = worldConfig.chunkVoxelLength;
+        voxelData = new BlockConfigs.BlockDataConfig[chunkVL, chunkVL, chunkVL];
+
+        for (int x = 0; x < chunkVL; x++)
         {
-            for (int y = 0; y < chunkUnit; y++)
+            for (int y = 0; y < chunkVL; y++)
             {
-                for (int z = 0; z < chunkUnit; z++)
+                for (int z = 0; z < chunkVL; z++)
                 {
                     voxelData[x, y, z] = BlockConfigs.air;
                 }
             }
         }
+    }
 
-        for (int x = 0; x < chunkUnit; x++)
-        {
-            for (int z = 0; z < chunkUnit; z++)
-            {
-                voxelData[x, 0, z] = BlockConfigs.red;
-            }
-        }
+    public void AddVoxelToMap(Vector3 position, BlockConfigs.BlockDataConfig blockConfig)
+    {
+        voxelData[(int)position.x, (int)position.y, (int)position.z] = blockConfig;
     }
 
     public void CreateChunk()
     {
-        for (int x = 0; x < chunkUnit; x++)
+        int chunkVL = worldConfig.chunkVoxelLength;
+
+        for (int x = 0; x < chunkVL; x++)
         {
-            for (int z = 0; z < chunkUnit; z++)
+            for (int y = 0; y < chunkVL; y++) 
             {
-                CreateVoxel(new Vector3(x, 0, z), BlockConfigs.blue);
+                for (int z = 0; z < chunkVL; z++)
+                {
+                    CreateVoxel(new Vector3(x, y, z), voxelData[x, y, z]);
+                }
             }
         }
-
-        for (int x = 0; x < chunkUnit - 2; x++)
-        {
-            for (int z = 0; z < chunkUnit - 2; z++)
-            {
-                CreateVoxel(new Vector3(x + 1, 0, z + 1), BlockConfigs.red);
-            }
-        }
-
-        //FillInChunk();
 
         UpdateMesh();
     }
 
-    //Doesn't Work to my knowledge \/ \/ \/
-    public void FillInChunk()
-    {
-        for (int x = 0; x < chunkUnit; x++)
-        {
-            for (int y = 0; y < chunkUnit; y++)
-            {
-                for (int z = 0; z < chunkUnit; z++)
-                {
-                    CreateVoxel(new Vector3(x,y,z), voxelData[x,y,z]);
-                }
-            }
-        }
-    }
-
     private bool CheckVoxel(Vector3 voxelPosition, int currentFace)
     {
+        int chunkVL = worldConfig.chunkVoxelLength;
+
         Vector3 positionToCheck = voxelPosition;
 
         if (currentFace == 0)
@@ -140,7 +119,7 @@ public class Chunk
         int checkY = (int)positionToCheck.y;
         int checkZ = (int)positionToCheck.z;
 
-        if (checkX == -1 || checkX == chunkUnit || checkY == -1 || checkY == chunkUnit|| checkZ == -1 || checkZ == chunkUnit)
+        if (checkX == -1 || checkX == chunkVL || checkY == -1 || checkY == chunkVL || checkZ == -1 || checkZ == chunkVL)
         {
             return false;
         }
@@ -177,6 +156,11 @@ public class Chunk
 
     private void CreateVoxel(Vector3 voxelPosition, BlockConfigs.BlockDataConfig blockData)
     {
+        if (blockData.transparency == true)
+        {
+            return;
+        }
+
         // Front -> Left -> Back -> Right -> Top -> Bottom
 
         for (int i = 0; i < 6; i++)
@@ -272,7 +256,7 @@ public class Chunk
         }
     }
 
-    [SerializeField] int tileSheetLength = 4;
+    private int tileSheetLength = 4;
 
     private void AddVoxelUVs(int currentFace, BlockConfigs.BlockDataConfig blockData)
     {
