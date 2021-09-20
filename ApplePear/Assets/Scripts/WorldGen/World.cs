@@ -15,6 +15,7 @@ public class World : MonoBehaviour
     private void Start()
     {
         worldConfig = this.GetComponent<WorldConfig>();
+        worldConfig.InitializeAllVariables();
 
         InitializeChunkArray();
 

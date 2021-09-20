@@ -13,7 +13,7 @@ public class WorldConfig : MonoBehaviour
     [HideInInspector] public Vector3 startChunkPosition;
     [HideInInspector] public Vector3 startVoxelPosition;
 
-    private void Start()
+    public void InitializeAllVariables()
     {
         InitializeStartPositions();
         InitializeWorldLengthVoxel();
