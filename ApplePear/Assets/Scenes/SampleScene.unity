@@ -182,7 +182,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bf2245a164779c24588df72b2148585b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  worldChunkLength: 30
+  worldChunkLength: 100
   chunkRenderRange: 5
   chunkVoxelLength: 20
   worldLengthVoxel: 0

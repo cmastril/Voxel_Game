@@ -7,12 +7,6 @@ public class WorldGeneration : MonoBehaviour
     [SerializeField] World world;
     [SerializeField] WorldConfig worldConfig;
 
-    private void Start()
-    {
-        //world = this.GetComponent<World>();
-        //worldConfig = this.GetComponent<WorldConfig>();
-    }
-
     public void GenerateWorldMap()
     {
         worldConfig.InitializeAllVariables();
@@ -22,7 +16,20 @@ public class WorldGeneration : MonoBehaviour
             for (int z = 0; z < worldConfig.worldLengthVoxel; z++)
             {
                 Vector3 tempV = new Vector3(x, 0, z);
-                world.PlaceVoxel(tempV, BlockConfigs.blue);
+
+                int ran = Random.Range(0,2);
+
+                if (ran == 0)
+                {
+                    world.PlaceVoxel(tempV, BlockConfigs.red);
+                }
+                else if (ran == 1)
+                {
+                    for (int i = 0; i < 3; i++)
+                    {
+                        world.PlaceVoxel(tempV + new Vector3(0,i,0), BlockConfigs.blue);
+                    }
+                }
             }
         }
     }
